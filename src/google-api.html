@@ -60,14 +60,14 @@
 	<!-- STORE -->
 	<div class="tab-pane fade" id="sfgsc-tab-store" role="tabpanel">
 		<div class="container">
-			<form id="sfgsc-store-form" class="sfgsc-logged-in">
+			<form id="sfgsc-store-form" class="sfgsc-dynamic-content sfgsc-logged-in">
 				<div class="row">
 					<div class="col">
-						Date: <input type="date" name="sfgsc-store-date" class="form-control">
+						Date: <input type="date" id="sfgsc-store-date" name="sfgsc-store-date" class="form-control">
 					</div>
 					<div class="col">
 						Type:
-						<select name="sfgsc-store-type-list" class="form-control">
+						<select id="sfgsc-store-type" name="sfgsc-store-type" class="form-control">
 							<option value="web">Web (default)</option>
 							<option value="discover">Discover</option>
 							<option value="image">Image</option>
@@ -80,7 +80,7 @@
 				<div class="row mb-3">
 					<div class="col">
 						<label class="form-check-label" for="sfgsc-store-site">Website</label>:
-						<input id="sfgsc-store-site" class="form-control" type="text" value="" placeholder="https://www.example.com">
+						<input id="sfgsc-store-site" name="sfgsc-store-site" class="form-control" type="text" value="" placeholder="https://www.example.com">
 					</div>
 				</div>
 				<div class="row mt-3">
@@ -212,22 +212,8 @@
 	
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
 	<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js" integrity="sha512-xQBQYt9UcgblF6aCMrwU1NkVA7HCXaSN2oq0so80KO+y68M+n64FOcqgav4igHe6D5ObBLIf68DWv+gfBowczg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-	<script>
-	  // Your web app's Firebase configuration
-	  var firebaseConfig = {
-		apiKey: "AIzaSyB_0-yBu3POu2kZK8vQWj-55JVIibDfAA8",
-		authDomain: "sfgsc-bfdae.firebaseapp.com",
-		projectId: "sfgsc-bfdae",
-		storageBucket: "sfgsc-bfdae.appspot.com",
-		messagingSenderId: "291140215248",
-		appId: "1:291140215248:web:3c6077b495534212ca99d5"
-	  };
-	  // Initialize Firebase
-	  firebase.initializeApp(firebaseConfig);
-	</script>
-  
-  
 	<script>
 		"use strict";
 
@@ -286,7 +272,20 @@
 			// "Store Data" form submitted
 			$('#sfgsc-store-form').on('submit', event => {
 				let store_site = $('#sfgsc-store-site').val()
-				
+				let date = $('#sfgsc-store-date').val()
+				let search_type = $('#sfgsc-store-type').val()
+				let query_obj_default = {
+					'type': search_type,
+					'startDate': date,
+					'endDate': date,
+					'rowLimit': 25000,
+					'startRow': 0,
+					'dimensions': ['date', 'query', 'page', 'device', 'country']
+				}
+				console.log(query_obj_default)
+				let query = JSON.stringify(query_obj_default)
+				// fetch_api_data(query, explore_site)
+				event.preventDefault()
 			})
 			
 			
@@ -296,55 +295,8 @@
 				$('#sfgsc-explore-result').html("")
 				last_download_data = null
 				let query = $('#sfgsc-command').val()
-				let query_obj = null
-				try {
-					query_obj = JSON.parse(query)
-				} catch {
-					console.log("Query is no valid JSON")
-					query = null
-				}
 				explore_site = $('#sfgsc-query-site').val()
-				if( !query_obj ) {
-					console.log("Query not valid")
-					show_alert('danger', "Query not valid")
-					show_custom_toast("Error", "Query not valid", "")
-					event.preventDefault()
-					return
-				}
-				if( !/^https?\:\/\/.*$/.test(explore_site) ) {
-					console.log("Invalid site")
-					show_alert('danger', "Invalid site")
-					show_custom_toast("Error", "Invalid site", "")
-					event.preventDefault()
-					return;
-				}
-				update_settings({
-					'explore-site': explore_site,
-					'explore-query': query
-				})
-				let query_url = CONFIG.QUERY_URI
-					.replace('###SITE###', encodeURIComponent(explore_site))
-					.replace('###TOKEN###', encodeURIComponent(CREDENTIALS.access_token))
-				$.ajax({
-					url: query_url,
-					method: 'POST',
-					data: query,
-					dataType: 'json',
-					contentType: 'application/json',
-				})
-				.done( response => {
-					show_explore_result(query_obj, response)
-				})
-				.fail( response => {
-					console.log(response)
-					let html = `Error: ${response.responseJSON.error}<br>Description: ${response.responseJSON.error_description}`
-					if( response.status == 401 ) {
-						update_access_token()
-						show_alert('info', 'You\'ve been logged out. Please re-run your query.')
-					} else {
-						show_alert('danger', html)
-					}
-				})
+				fetch_api_data(query, explore_site, show_explore_result)
 				event.preventDefault()
 			})
 			
@@ -437,6 +389,60 @@
 			/************************************************
 				FUNCTIONS
 			 ************************************************/
+			
+			/**
+				@param query JSON formatted string
+				@param site Site to fetch data from
+				@param success_cb A function that's called on success (with query_obj and response as parameters)
+			 */
+			function fetch_api_data(query, site, success_cb) {
+				let query_obj = null
+				try {
+					query_obj = JSON.parse(query)
+				} catch {
+					console.log("Query is no valid JSON")
+					query = null
+				}
+				if( !query_obj ) {
+					console.log("Query not valid")
+					show_alert('danger', "Query not valid")
+					show_custom_toast("Error", "Query not valid", "")
+					return
+				}
+				if( !/^https?\:\/\/.*$/.test(site) ) {
+					console.log("Invalid site")
+					show_alert('danger', "Invalid site")
+					show_custom_toast("Error", "Invalid site", "")
+					return
+				}
+				update_settings({
+					'explore-site': site,
+					'explore-query': query
+				})
+				let query_url = CONFIG.QUERY_URI
+					.replace('###SITE###', encodeURIComponent(site))
+					.replace('###TOKEN###', encodeURIComponent(CREDENTIALS.access_token))
+				$.ajax({
+					url: query_url,
+					method: 'POST',
+					data: query,
+					dataType: 'json',
+					contentType: 'application/json',
+				})
+				.done( response => {
+					success_cb(query_obj, response)
+				})
+				.fail( response => {
+					console.log(response)
+					let html = `Error: ${response.responseJSON.error}<br>Description: ${response.responseJSON.error_description}`
+					if( response.status == 401 ) {
+						update_access_token()
+						show_alert('info', 'You\'ve been logged out. Please re-run your query.')
+					} else {
+						show_alert('danger', html)
+					}
+				})
+			}
 			
 			
 			function show_explore_result(query_obj, response) {
