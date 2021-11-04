@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>GSC Explorer</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+	<link rel="shortcut icon" type="image/png" href="/images/favicon.png">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+	<style type="text/css">
+		#sfgsc-explore-result {
+			overflow: scroll;
+		}
+	</style>
+</head>
+<body>
+	
+	<nav class="navbar-light bg-light mb-4">
+		<div class="nav nav-tabs" role="tablist">
+			<button class="nav-link active" id="sfgsc-nav-tab-authenticate" data-bs-toggle="tab" data-bs-target="#sfgsc-tab-authenticate" type="button" role="tab">Authenticate</button>
+			<button class="nav-link" id="sfgsc-nav-tab-store" data-bs-toggle="tab" data-bs-target="#sfgsc-tab-store" type="button" role="tab">Store</button>
+			<button class="nav-link" id="sfgsc-nav-tab-query" data-bs-toggle="tab" data-bs-target="#sfgsc-tab-query" type="button" role="tab">Query</button>
+			<button class="nav-link" id="sfgsc-nav-tab-explore" data-bs-toggle="tab" data-bs-target="#sfgsc-tab-explore" type="button" role="tab">Explore</button>
+		</div>
+	</nav>
+	
+	
+	<!-- AUTHENTICATE -->
+	<div class="tab-pane fade show active" id="sfgsc-tab-authenticate" role="tabpanel">
+		<div class="container mt-5">
+			<div class="row sfgsc-dynamic-content sfgsc-logged-in">
+				<div class="col">Your're successfuly logged in!</div>
+			</div>
+			<form id="sfgsc-get-authcode-form" class="row sfgsc-dynamic-content sfgsc-no-refresh-token">
+				<div class="col-12">
+					<label for="sfgsc-client-id">Google Client ID:</label>
+					<input id="sfgsc-client-id" class="form-control" type="text" value="" placeholder="client-id">
+				</div>
+				<div class="col-12">
+					<button class="btn btn-primary">Get Authcode</button>
+				</div>
+			</form>
+			<form id="sfgsc-set-credentials-form" class="row sfgsc-dynamic-content sfgsc-no-refresh-token">
+				<div class="col-12 mt-5">
+					<label for="">Google AuthCode:</label>
+					<input id="sfgsc-authcode" class="form-control" type="text" value="" placeholder="AuthCode starting with 4/....">
+				</div>
+				<div class="col-12">
+					<button class="btn btn-primary">Save</button>
+				</div>
+			</form>
+			<form id="sfgsc-refresh-login-form" class="row sfgsc-dynamic-content sfgsc-no-access-token">
+				<div class="col-12">
+					<button class="btn btn-primary">Refresh Login</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	
+	
+	<!-- STORE -->
+	<div class="tab-pane fade" id="sfgsc-tab-store" role="tabpanel">
+		<div class="container">
+			<form id="sfgsc-store-form" class="sfgsc-logged-in">
+				<div class="row">
+					<div class="col">
+						Date: <input type="date" name="sfgsc-store-date" class="form-control">
+					</div>
+					<div class="col">
+						Type:
+						<select name="sfgsc-store-type-list" class="form-control">
+							<option value="web">Web (default)</option>
+							<option value="discover">Discover</option>
+							<option value="image">Image</option>
+							<option value="googleNews">Google News</option>
+							<option value="news">News</option>
+							<option value="video">Video</option>
+						</select>
+					</div>
+				</div>
+				<div class="row mb-3">
+					<div class="col">
+						<label class="form-check-label" for="sfgsc-store-site">Website</label>:
+						<input id="sfgsc-store-site" class="form-control" type="text" value="" placeholder="https://www.example.com">
+					</div>
+				</div>
+				<div class="row mt-3">
+					<div class="col">
+						<button class="btn btn-primary mb-3">Store Data</button>
+					</div>
+				</div>
+			</form>
+			<div class="row mb-3">
+				<div class="col sfgsc-dynamic-content sfgsc-no-access-token">
+					Please authenticate first
+				</div>
+			</div>
+		</div>
+	</div>
+	
+	
+	<!-- QUERY -->
+	<div class="tab-pane fade" id="sfgsc-tab-query" role="tabpanel">
+		<div class="container">
+			<form id="sfgsc-query-form" class="sfgsc-dynamic-content sfgsc-logged-in">
+				<div class="row">
+					<div class="col">
+						Start date: <input type="date" name="sfgsc-start-date" class="form-control">
+					</div>
+					<div class="col">
+						End date: <input type="date" name="sfgsc-end-date" class="form-control">
+					</div>
+					<div class="col">
+						Dimensions:
+						<select multiple="multiple" name="sfgsc-dimensions-list" class="form-control">
+							<option value="">No Dimension</option>
+							<option value="country">Country</option>
+							<option value="date">Date</option>
+							<option value="device">Device</option>
+							<option value="page">Page</option>
+							<option value="query">Query</option>
+							<option value="searchAppearance">SearchAppearance</option>
+						</select>
+					</div>
+					<div class="col">
+						Row Limit:
+						<input type="number" value="5000" name="sfgsc-row-limit" class="form-control">
+					</div>
+				</div>
+				<div class="row">
+					<div class="col">
+						Type:
+						<select multiple="multiple" name="sfgsc-dimensions-list" class="form-control">
+							<option value="web">Web (default)</option>
+							<option value="discover">Discover</option>
+							<option value="image">Image</option>
+							<option value="googleNews">Google News</option>
+							<option value="news">News</option>
+							<option value="video">Video</option>
+						</select>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col">
+						<button class="btn btn-primary mb-3">Run Query</button>
+					</div>
+				</div>
+			</form>
+			<div class="row mb-3">
+				<div class="col sfgsc-dynamic-content sfgsc-no-access-token">
+					Please authenticate first
+				</div>
+			</div>
+		</div>
+	</div>
+
+
+	<!-- EXPLORE -->
+	<div class="tab-pane fade" id="sfgsc-tab-explore" role="tabpanel">
+		<div class="container">
+			<form id="sfgsc-explore-form" class="sfgsc-dynamic-content sfgsc-logged-in">
+				<div class="row mb-3">
+					<div class="col">
+						<textarea id="sfgsc-command" rows="12" class="form-control"></textarea>
+					</div>
+				</div>
+				<div class="row mb-3">
+					<div class="col">
+						<label class="form-check-label" for="sfgsc-query-site">Website</label>:
+						<input id="sfgsc-query-site" class="form-control" type="text" value="" placeholder="https://www.example.com">
+					</div>
+				</div>
+				<div class="row mb-3">
+					<div class="col">
+						<button class="btn btn-primary">Query</button>
+					</div>
+					<div class="col">
+						<button id="sfgsc-load-last-explore-query" class="btn btn-outline-secondary" type="button">Load last query</button>
+					</div>
+				</div>
+			</form>
+			<div class="row mb-3">
+				<div class="col sfgsc-dynamic-content sfgsc-no-access-token">
+					Please authenticate first
+				</div>
+			</div>
+			<div class="row mt-5">
+				<form class="col mb-3">
+					<a id="sfgsc-download-result" href="#" class="btn btn-sm btn-outline-secondary" style="display: none;" download>Download</a>
+				</form>
+				<div id="sfgsc-explore-chart" style="width: 100%; height: 500px"></div>
+				<div id="sfgsc-explore-result"></div>
+			</div>
+		</div>
+	</div>
+
+
+	<!-- Alerts -->
+	<div id="sfgsc-alert-danger" class="alert alert-danger alert-dismissible fade" role="alert">
+		<span></span>
+		<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close">
+	</div>
+	<div id="sfgsc-alert-info" class="alert alert-info alert-dismissible fade" role="alert">
+		<span></span>
+		<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close">
+	</div>
+	
+	
+
+
+
+	<script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+	
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+	<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+	<script>
+	  // Your web app's Firebase configuration
+	  var firebaseConfig = {
+		apiKey: "AIzaSyB_0-yBu3POu2kZK8vQWj-55JVIibDfAA8",
+		authDomain: "sfgsc-bfdae.firebaseapp.com",
+		projectId: "sfgsc-bfdae",
+		storageBucket: "sfgsc-bfdae.appspot.com",
+		messagingSenderId: "291140215248",
+		appId: "1:291140215248:web:3c6077b495534212ca99d5"
+	  };
+	  // Initialize Firebase
+	  firebase.initializeApp(firebaseConfig);
+	</script>
+  
+  
+	<script>
+		"use strict";
+
+		/************************************************************
+		 *
+		 *	C O N F I G U R A T I O N
+		 *
+		 ************************************************************/
+
+		const MY_CLIENT_ID = '131566363760-dsuv7nhsdl48rqodhdq6gujnf7unf5us.apps.googleusercontent.com'
+		const MY_CLIENT_SECRET = '9kGhMPQ6f2NxHWfZm4R9w1Vc'
+		const LOCAL_STORAGE_CREDENTIALS_KEY = 'sf-gsc-credentials'
+		const LOCAL_STORAGE_SETTINGS_KEY = 'sf-gsc-settings'
+		
+		
+		/************************************************************
+		 *
+		 *	C O D E
+		 *
+		 ************************************************************/
+		
+		$(function () {
+			
+			const { Toast } = bootstrap;
+			
+			let CREDENTIALS = read_credentials()
+			console.log(CREDENTIALS)
+			update_ui()
+
+			let CONFIG = {
+				REDIRECT_URI: document.URL,
+				CLIENT_ID: MY_CLIENT_ID,
+				CLIENT_SECRET: MY_CLIENT_SECRET,
+				SCOPE: 'https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fwebmasters',
+				RESPONSE_TYPE: 'code',
+				REDIRECT_URI: 'urn:ietf:wg:oauth:2.0:oob',
+				REFRESH_URI: 'https://accounts.google.com/o/oauth2/token',
+				QUERY_URI: 'https://www.googleapis.com/webmasters/v3/sites/###SITE###/searchAnalytics/query?access_token=###TOKEN###',
+			}
+		
+			$('#sfgsc-client-id').val(CONFIG.CLIENT_ID)
+			
+			
+			let last_download_data = null
+			let download_blob = null
+			let explore_site = ""
+			let flattened = []
+			
+			
+			
+			/************************************************
+				EVENTS
+			 ************************************************/
+			
+			
+			// "Store Data" form submitted
+			$('#sfgsc-store-form').on('submit', event => {
+				let store_site = $('#sfgsc-store-site').val()
+				
+			})
+			
+			
+			// Submit custom query
+			$('#sfgsc-explore-form').on('submit', event => {
+				$('#sfgsc-download-result button').hide()
+				$('#sfgsc-explore-result').html("")
+				last_download_data = null
+				let query = $('#sfgsc-command').val()
+				let query_obj = null
+				try {
+					query_obj = JSON.parse(query)
+				} catch {
+					console.log("Query is no valid JSON")
+					query = null
+				}
+				explore_site = $('#sfgsc-query-site').val()
+				if( !query_obj ) {
+					console.log("Query not valid")
+					show_alert('danger', "Query not valid")
+					show_custom_toast("Error", "Query not valid", "")
+					event.preventDefault()
+					return
+				}
+				if( !/^https?\:\/\/.*$/.test(explore_site) ) {
+					console.log("Invalid site")
+					show_alert('danger', "Invalid site")
+					show_custom_toast("Error", "Invalid site", "")
+					event.preventDefault()
+					return;
+				}
+				update_settings({
+					'explore-site': explore_site,
+					'explore-query': query
+				})
+				let query_url = CONFIG.QUERY_URI
+					.replace('###SITE###', encodeURIComponent(explore_site))
+					.replace('###TOKEN###', encodeURIComponent(CREDENTIALS.access_token))
+				$.ajax({
+					url: query_url,
+					method: 'POST',
+					data: query,
+					dataType: 'json',
+					contentType: 'application/json',
+				})
+				.done( response => {
+					show_explore_result(query_obj, response)
+				})
+				.fail( response => {
+					console.log(response)
+					let html = `Error: ${response.responseJSON.error}<br>Description: ${response.responseJSON.error_description}`
+					if( response.status == 401 ) {
+						update_access_token()
+						show_alert('info', 'You\'ve been logged out. Please re-run your query.')
+					} else {
+						show_alert('danger', html)
+					}
+				})
+				event.preventDefault()
+			})
+			
+			
+			// Download data
+			$('#sfgsc-download-result').on('click', event => {
+				console.log("download")
+				setTimeout(URL.revokeObjectURL, 5000, download_blob);
+			})
+			
+			
+			// Load last query and site
+			$('#sfgsc-load-last-explore-query').on('click', event => {
+				$('#sfgsc-command').val( get_setting('explore-query') )
+				$('#sfgsc-query-site').val( get_setting('explore-site') )
+			})
+			
+			
+			// Fetch AuthCode from Google
+			$('#sfgsc-get-authcode-form').on('submit', event => {
+				let authcode_url = build_url_authcode()
+				console.log(authcode_url)
+				let authcode_win = window.open(authcode_url, '_blank');
+				if( authcode_win ) {
+					authcode_win.focus();
+				} else {
+					show_alert('Please allow popups for this website');
+				}
+				event.preventDefault()
+			})
+			
+			
+			// Fetch Refresh Token
+			// 4/1AX4XfWjbvwlAl51zN5HZentMI8X2mlpdqzrLMWTW-9n5sEJqS0sgB2NHSuE
+			$('#sfgsc-set-credentials-form').on('submit', event => {
+				let authcode = $('#sfgsc-authcode').val()
+				console.log(authcode)
+				let request_data = {
+					code: authcode,
+					client_id: CONFIG.CLIENT_ID,
+					client_secret: CONFIG.CLIENT_SECRET,
+					redirect_uri: CONFIG.REDIRECT_URI,
+					grant_type: 'authorization_code'
+				}
+				console.log(request_data)
+				$.ajax({
+					url: CONFIG.REFRESH_URI,
+					method: 'POST',
+					data: request_data,
+				})
+				.done( response => {
+					console.log(response)
+					store_credentials(response)
+				})
+				.fail( response => {
+					console.log(response)
+					let html = `Error: ${response.responseJSON.error}<br>Description: ${response.responseJSON.error_description}`
+					show_alert('danger', html)
+				})
+				.always( _ => {
+					update_ui()
+				})
+				event.preventDefault()
+			})
+			
+			
+			// Fetch Access Token
+			$('#sfgsc-refresh-login-form').on('submit', event => {
+				console.log("refresh")
+				update_access_token()
+				event.preventDefault()
+			})
+			
+			
+			// Do some UI adaptions when Tab changes
+			let tab_elems = document.querySelectorAll('button[data-bs-toggle="tab"]')
+			for( let i = 0; i < tab_elems.length; ++i ) {
+				tab_elems[i].addEventListener('show.bs.tab', function (event) {
+					console.log(event.target)
+					console.log(event.relatedTarget)
+					let new_tab = $(event.target).attr('data-bs-target')
+					let prev_tab = $(event.relatedTarget).attr('data-bs-target')
+					console.log(prev_tab)
+					$(new_tab).show()
+					$(prev_tab).hide()
+				})
+			}
+			
+			
+			/************************************************
+				FUNCTIONS
+			 ************************************************/
+			
+			
+			function show_explore_result(query_obj, response) {
+				let out = ''
+				if( 'rows' in response) {
+					flattened = flatten_gsc_data(query_obj, response.rows)
+					console.log(response)
+					last_download_data = {
+						'original': response,
+						'flattened': flattened,
+					}
+					out += '<p>Results: ' + response.rows.length + '</p>'
+					out += '<table class="table table-striped"><tr>'
+					out += '<th>#</th>'
+					for( const col_index in flattened[0] ) {
+						out += `<th>${flattened[0][col_index]}</th>`
+					}
+					out += '</tr>'
+					for( const row_index in flattened ) {
+						if( row_index == 0) {
+							continue
+						}
+						out += '<tr><td>'+row_index+'</td>'
+						for( const col_index in flattened[row_index]) {
+							let val = flattened[row_index][col_index]
+							if( flattened[0][col_index] == 'ctr' || flattened[0][col_index] == 'position' ) {
+								val = val.toFixed(2)
+							}
+							out += `<td>${val}</td>`
+						}
+						out += '</tr>'
+					}
+					out += '</table>'
+					download_blob = new Blob( [array_to_csv(last_download_data.flattened)], {type:'application/octet-stream'} )
+					let download_blob_url = URL.createObjectURL(download_blob)
+					$('#sfgsc-download-result').attr('download', 'gsc.csv')
+					$('#sfgsc-download-result').attr('href', download_blob_url)
+					$('#sfgsc-download-result').show()
+					if( flattened[0][0] == 'date' && flattened[0][1] == 'clicks') {
+						$('#sfgsc-explore-chart').attr('style', 'width: 100%; height: 500px')
+						google.charts.load('current', {'packages':['line']})
+						google.charts.setOnLoadCallback(show_explore_chart)
+					} else {
+						$('#sfgsc-explore-chart').attr('style', 'width: 100%; height: 0px')
+					}
+				} else {
+					out = "No data in response from API"
+				}
+				$('#sfgsc-explore-result').html(out)
+			}
+			
+			
+			function show_explore_chart() {
+				flattened = cut_columns(flattened, [0,1,2])
+				var data = google.visualization.arrayToDataTable(flattened);
+				var options = {
+					chart: {
+						title: explore_site,
+						legend: { position: 'bottom' },
+					},
+					series: {
+						0: {axis: 'clicks'},
+						1: {axis: 'impressions'},
+						// 2: {axis: 'ctr'},
+						// 3: {axis: 'position'},
+					},
+					axes: {
+						y: {
+							clicks: {label: 'Clicks'},
+							impressions: {label: 'Impressions'},
+							// ctr: {label: 'CTR'},
+							// position: {label: 'Position'},
+						}
+					}
+				};
+				var chart = new google.charts.Line(document.getElementById('sfgsc-explore-chart'));
+				chart.draw(data, options);
+			}
+			
+			
+			function flatten_gsc_data(query_obj, rows) {
+				let my_flattened = []
+				let columns = []
+				let keys = query_obj.dimensions
+				if( keys ) {
+					for( const key in keys ) {
+						columns.push(keys[key])
+					}
+				}
+				columns.push(...['clicks', 'impressions', 'ctr', 'position'])
+				my_flattened.push(columns)
+				for( let i = 0; i < rows.length; ++i ) {
+					let row = []
+					if( keys ) {
+						for( const key in rows[i].keys ) {
+							row.push(rows[i].keys[key])
+						}
+					}
+					row.push(rows[i].clicks)
+					row.push(rows[i].impressions)
+					row.push(rows[i].ctr)
+					row.push(rows[i].position)
+					my_flattened.push(row)
+				}
+				return my_flattened
+			}
+			
+			
+			function update_ui() {
+				$('.sfgsc-dynamic-content').hide()
+				if( !CREDENTIALS || !CREDENTIALS.refresh_token ) {
+					$('.sfgsc-no-refresh-token').show()
+				} else if( !CREDENTIALS.access_token ) {
+					$('.sfgsc-no-access-token').show()
+				} else if( CREDENTIALS.access_token ) {
+					$('.sfgsc-logged-in').show()
+				}
+			}
+			
+			
+			function update_access_token() {
+				let request_data = {
+					client_id: CONFIG.CLIENT_ID,
+					client_secret: CONFIG.CLIENT_SECRET,
+					refresh_token: CREDENTIALS.refresh_token,
+					grant_type: 'refresh_token'
+				}
+				console.log(request_data)
+				$.ajax({
+					url: CONFIG.REFRESH_URI,
+					method: 'POST',
+					data: request_data,
+				})
+				.done( response => {
+					console.log(response)
+					store_credentials(response)
+				})
+				.fail( response => {
+					console.log(response)
+					let html = `Error: ${response.responseJSON.error}<br>Description: ${response.responseJSON.error_description}`
+					show_alert('danger', html)
+				})
+				.always( _ => {
+					update_ui()
+				})
+			}
+			
+			
+			//
+			// Build URL to fetch AuthCode from Google
+			function build_url_authcode() {
+				let redirec_uri_encoded = encodeURIComponent(CONFIG.REDIRECT_URI)
+				return `https://accounts.google.com/o/oauth2/v2/auth?scope=${CONFIG.SCOPE}&response_type=${CONFIG.RESPONSE_TYPE}&redirect_uri=${redirec_uri_encoded}&client_id=${CONFIG.CLIENT_ID}`
+			}
+			
+			
+			//
+			// Stores the credentials that were returned from Google's OAuth2 login with AuthCode
+			function store_credentials(response) {
+				let refresh_token = response.refresh_token ? response.refresh_token : CREDENTIALS.refresh_token
+				let access_token = response.access_token ? response.access_token : CREDENTIALS.access_token
+				let new_credentials = {
+					access_token: access_token,
+					refresh_token: refresh_token,
+					expires: response.expires_in + get_unix_timestamp()
+				}
+				console.log(new_credentials)
+				localStorage.setItem(LOCAL_STORAGE_CREDENTIALS_KEY, JSON.stringify(new_credentials))
+				CREDENTIALS = new_credentials
+			}
+			
+			
+			function read_credentials() {
+				let credentials = null
+				if( localStorage.getItem(LOCAL_STORAGE_CREDENTIALS_KEY) !== null ) {
+					credentials = JSON.parse( localStorage.getItem(LOCAL_STORAGE_CREDENTIALS_KEY) )
+					credentials.ttl = credentials.expires - get_unix_timestamp()
+					if( credentials.ttl < 0 ) {
+						credentials.access_token = null;
+					}
+				}
+				return credentials
+			}
+			
+			
+			function get_setting(key, def) {
+				let ret = def !== undefined ? def : "" 
+				let stored_settings = JSON.parse( localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY) )
+				if( stored_settings && key in stored_settings ) {
+					ret = stored_settings[key]
+				}
+				return ret
+			}
+			
+			
+			/**
+				Updates settings (stored in localStorage) with the items in the given object.
+				If an item's value is set to `undefined`, this item is deleted.
+			
+				@param {obj} new_settings Object with the options that should be stored
+			*/
+			function update_settings(new_settings) {
+				let stored_settings = null
+				try{
+					stored_settings = JSON.parse( localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY) )
+				} catch {}
+				if( stored_settings === null ) {
+					stored_settings = {}
+				}
+				for( const key in new_settings ) {
+					if( new_settings[key] === undefined ) {
+						delete stored_settings[key]
+					} else {
+						stored_settings[key] = new_settings[key]
+					}
+				}
+				localStorage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(stored_settings) )
+			}
+			
+			
+			function show_alert(type, msg) {
+				let alert_id = 'sfgsc-alert-' + type
+				$('#' + alert_id + ' > span').html(msg)
+				$('#' + alert_id + '').addClass("show")
+				let alert = document.getElementById(alert_id)
+				new bootstrap.Alert(alert)
+			}
+			
+			function show_custom_toast(header, header_small, body) {
+					let options = {
+						delay: 3000,
+					}
+					html_id = "_sfgsc-toast-" + Math.floor( Math.random()*100000 );
+					let html = `<div aria-atomic="true" aria-live="assertive" class="toast position-absolute end-0 top-0 m-3" role="alert" id="${html_id}">
+						<div class="toast-header">
+							<strong class="me-auto">${header}</strong>
+							<small>${header_small}</small>
+							<button aria-label="Close" class="btn-close" data-bs-dismiss="toast" type="button"></button>
+						</div>
+						<div class="toast-body">
+							${body}
+						</div>
+					</div>`;
+					let template = document.createElement('template');
+					template.innerHTML = html;
+					let toast_elem = template.content.firstChild;
+					document.body.appendChild(toast_elem);
+					let my_toast = new Toast(toast_elem, options);
+					my_toast.show();
+					setTimeout(() => {
+						document.body.removeChild(toast_elem);
+					}, options.delay + 200);
+				}
+			
+			
+			function array_to_csv(data) {
+				let str = ''
+				for( let r = 0; r < data.length; ++r ) {
+					let line = ''
+					for( let c = 0; c < data[r].length; ++c ) {
+						let cell = data[r][c].toString().replaceAll(/"/g, '""')
+						if( c > 0 ) {
+							line += ','
+						}
+						line += '"' + cell + '"'
+					}
+					str += line + "\r\n"
+				}
+				return str
+			}
+			
+			function get_unix_timestamp() {
+				return Math.floor(Date.now() / 1000)
+			}
+			
+			function cut_columns(flattened, keep) {
+				for( let i = 0; i < flattened.length; ++i ) {
+					let tmp = []
+					for( let j = 0; j < keep.length; ++j) {
+						tmp.push(flattened[i][keep[j]])
+					}
+					flattened[i] = tmp
+				}
+				return flattened
+			}
+			
+			
+
+		})
+	</script>
+</body>
+</html>
