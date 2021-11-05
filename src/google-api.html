@@ -4,7 +4,7 @@
 	<meta charset="utf-8">
 	<title>GSC Explorer</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1"/>
-	<link rel="shortcut icon" type="image/png" href="/images/favicon.png">
+	<link rel="shortcut icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Ctext%20x='0'%20y='14'%3Esf%3C/text%3E%3C/svg%3E" type="image/svg+xml" />
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
 	<style type="text/css">
 		#sfgsc-explore-result {
@@ -85,11 +85,24 @@
 				</div>
 				<div class="row mt-3">
 					<div class="col">
-						<button class="btn btn-primary mb-3">Store Data</button>
+						<button class="btn btn-primary">Store Data</button>
+					</div>
+					<div class="col">
+						<button id="sfgsc-set-next-day" class="btn btn-outline-secondary" type="button">Set next day</button>
+						<button id="sfgsc-set-oldest-date" class="btn btn-outline-secondary" type="button">Set oldest date</button>
 					</div>
 				</div>
 			</form>
-			<div class="row mb-3">
+			<div class="row mt-3">
+				<div class="col" id="sfgsc-store-messages"></div>
+			</div>
+			<div class="row mt-3">
+				<form class="col mb-3">
+					<a id="sfgsc-store-download-detailed" href="#" class="btn btn-sm btn-outline-secondary" style="display: none;" download>Download Detailed Data</a>
+					<a id="sfgsc-store-download-general" href="#" class="btn btn-sm btn-outline-secondary" style="display: none;" download>Download General Data</a>
+				</form>
+			</div>
+			<div class="row mt-3">
 				<div class="col sfgsc-dynamic-content sfgsc-no-access-token">
 					Please authenticate first
 				</div>
@@ -252,15 +265,22 @@
 				REDIRECT_URI: 'urn:ietf:wg:oauth:2.0:oob',
 				REFRESH_URI: 'https://accounts.google.com/o/oauth2/token',
 				QUERY_URI: 'https://www.googleapis.com/webmasters/v3/sites/###SITE###/searchAnalytics/query?access_token=###TOKEN###',
+				PAGE_SIZE: 25000
 			}
 		
 			$('#sfgsc-client-id').val(CONFIG.CLIENT_ID)
-			
 			
 			let last_download_data = null
 			let download_blob = null
 			let explore_site = ""
 			let flattened = []
+			
+			
+			// Populate "Store" tab with data from last call
+			$('#sfgsc-store-site').val( get_setting('store-site') )
+			console.log( get_setting('store-date') )
+			console.log( get_date_by_days( get_setting('store-date'), 1) )
+			$('#sfgsc-store-date').val( get_date_by_days( get_setting('store-date'), 1) )
 			
 			
 			
@@ -271,20 +291,54 @@
 			
 			// "Store Data" form submitted
 			$('#sfgsc-store-form').on('submit', event => {
+				$('#sfgsc-store-download-detailed').hide()
+				$('#sfgsc-store-download-general').hide()
+				$('#sfgsc-store-messages').html('')
 				let store_site = $('#sfgsc-store-site').val()
-				let date = $('#sfgsc-store-date').val()
+				let my_date = $('#sfgsc-store-date').val()
 				let search_type = $('#sfgsc-store-type').val()
 				let query_obj_default = {
 					'type': search_type,
-					'startDate': date,
-					'endDate': date,
-					'rowLimit': 25000,
+					'startDate': my_date,
+					'endDate': my_date,
+					'rowLimit': CONFIG.PAGE_SIZE,
 					'startRow': 0,
 					'dimensions': ['date', 'query', 'page', 'device', 'country']
 				}
-				console.log(query_obj_default)
-				let query = JSON.stringify(query_obj_default)
-				// fetch_api_data(query, explore_site)
+				let all_data = { 'detailed': [], 'general': [] }
+				$('#sfgsc-store-messages').append(`Please wait while getting data for ${my_date} ...<br>`)
+				// Fetch detailed data
+				let query_obj = JSON.parse(JSON.stringify(query_obj_default))
+				fetch_paged(query_obj, store_site, 0, (data) => {
+					// store data
+					all_data.detailed = all_data.detailed.concat(data.rows)
+				}, () => {
+					// Finished detailed data
+					let my_flattened = flatten_gsc_data(query_obj, all_data.detailed)
+					download_blob = new Blob( [array_to_csv(my_flattened)], {type:'application/octet-stream'} )
+					let download_blob_url = URL.createObjectURL(download_blob)
+					let filename = create_csv_filename(store_site, query_obj.startDate, 'detailed', search_type)
+					$('#sfgsc-store-download-detailed').attr('download', filename)
+					$('#sfgsc-store-download-detailed').attr('href', download_blob_url)
+					$('#sfgsc-store-download-detailed').show()
+					
+					// Fetch general data
+					query_obj = JSON.parse(JSON.stringify(query_obj_default))
+					query_obj.dimensions = ['date', 'page', 'device', 'country']
+					fetch_paged(query_obj, store_site, 0, (data) => {
+						// store data
+						all_data.general = all_data.general.concat(data.rows)
+					}, () => {
+						// Finished general data
+						let my_flattened = flatten_gsc_data(query_obj, all_data.general)
+						download_blob = new Blob( [array_to_csv(my_flattened)], {type:'application/octet-stream'} )
+						let download_blob_url = URL.createObjectURL(download_blob)
+						let filename = create_csv_filename(store_site, query_obj.startDate, 'general', search_type)
+						$('#sfgsc-store-download-general').attr('download', filename)
+						$('#sfgsc-store-download-general').attr('href', download_blob_url)
+						$('#sfgsc-store-download-general').show()
+					})
+				})
 				event.preventDefault()
 			})
 			
@@ -296,7 +350,18 @@
 				last_download_data = null
 				let query = $('#sfgsc-command').val()
 				explore_site = $('#sfgsc-query-site').val()
-				fetch_api_data(query, explore_site, show_explore_result)
+				fetch_api_data(query, explore_site)
+				.then( (response) => {
+					update_settings({
+						'explore-site': explore_site,
+						'explore-query': query
+					})
+					show_explore_result(response.query, response.data, {
+						'table': true,
+						'chart': true,
+						'download': true
+					})
+				})
 				event.preventDefault()
 			})
 			
@@ -312,6 +377,17 @@
 			$('#sfgsc-load-last-explore-query').on('click', event => {
 				$('#sfgsc-command').val( get_setting('explore-query') )
 				$('#sfgsc-query-site').val( get_setting('explore-site') )
+			})
+			
+			// Set next day
+			$('#sfgsc-set-next-day').on('click', event => {
+				console.log("set next day")
+				$('#sfgsc-store-date').val( get_date_by_days( $('#sfgsc-store-date').val(), 1) )
+			})
+			
+			// Set oldest date with data
+			$('#sfgsc-set-oldest-date').on('click', event => {
+				$('#sfgsc-store-date').val( get_date_by_days( '', -500) )
 			})
 			
 			
@@ -390,6 +466,44 @@
 				FUNCTIONS
 			 ************************************************/
 			
+			
+			/**
+				Fetches the data as described by query_obj and pages through the results.
+			
+				@param query_obj Query to execute as an object
+				@param store_site The site that gets queried
+				@param page The page number of the results
+				@param store_cb Callback function that stores the result from the API call
+				@param finished_cb Gets called when all pages have been queried
+			 */
+			function fetch_paged(query_obj, store_site, page, store_cb, finished_cb) {
+				let start_row = page * CONFIG.PAGE_SIZE
+				query_obj.startRow = start_row
+				console.log(query_obj)
+				let query = JSON.stringify(query_obj)
+				fetch_api_data(query, store_site)
+				.then( (response) => {
+					console.log( response.data )
+					if( 'rows' in response.data ) {
+						update_settings({
+							'store-site': store_site,
+							'store-date': query_obj.startDate
+						})
+						store_cb(response.data)
+						$('#sfgsc-store-messages').append(`Fetched ${response.data.rows.length} rows!<br>`)
+						if( response.data.rows.length >= CONFIG.PAGE_SIZE ) {
+							fetch_paged(query_obj, store_site, page+1, store_cb, finished_cb)
+						} else {
+							finished_cb()
+						}
+					} else {
+						$('#sfgsc-store-messages').append('Could not find any data!')
+						finished_cb()
+					}
+				})
+			}
+			
+			
 			/**
 				@param query JSON formatted string
 				@param site Site to fetch data from
@@ -411,41 +525,49 @@
 				}
 				if( !/^https?\:\/\/.*$/.test(site) ) {
 					console.log("Invalid site")
+					console.log(site)
 					show_alert('danger', "Invalid site")
 					show_custom_toast("Error", "Invalid site", "")
 					return
 				}
-				update_settings({
-					'explore-site': site,
-					'explore-query': query
-				})
 				let query_url = CONFIG.QUERY_URI
 					.replace('###SITE###', encodeURIComponent(site))
 					.replace('###TOKEN###', encodeURIComponent(CREDENTIALS.access_token))
-				$.ajax({
-					url: query_url,
-					method: 'POST',
-					data: query,
-					dataType: 'json',
-					contentType: 'application/json',
-				})
-				.done( response => {
-					success_cb(query_obj, response)
-				})
-				.fail( response => {
-					console.log(response)
-					let html = `Error: ${response.responseJSON.error}<br>Description: ${response.responseJSON.error_description}`
-					if( response.status == 401 ) {
-						update_access_token()
-						show_alert('info', 'You\'ve been logged out. Please re-run your query.')
-					} else {
-						show_alert('danger', html)
-					}
+				return new Promise((resolve, reject) => {
+					$.ajax({
+						url: query_url,
+						method: 'POST',
+						data: query,
+						dataType: 'json',
+						contentType: 'application/json',
+					})
+					.success( response => {
+						resolve( {
+							'data': response,
+							'query': query_obj
+						})
+					})
+					.error( error => {
+						console.log(response)
+						let html = `Error: ${response.responseJSON.error}<br>Description: ${response.responseJSON.error_description}`
+						if( response.status == 401 ) {
+							update_access_token()
+							show_alert('info', 'You\'ve been logged out. Please re-run your query.')
+						} else {
+							show_alert('danger', html)
+						}
+						reject(error)
+					})
 				})
 			}
 			
 			
-			function show_explore_result(query_obj, response) {
+			/**
+				@param query_obj Query that's been used to fetch the data
+				@param response The response from the API (containing 'rows' item)
+				@param display What should be displayed? { 'table': true, 'chart': true, 'download': true }
+			 */
+			function show_explore_result(query_obj, response, display) {
 				let out = ''
 				if( 'rows' in response) {
 					flattened = flatten_gsc_data(query_obj, response.rows)
@@ -455,38 +577,44 @@
 						'flattened': flattened,
 					}
 					out += '<p>Results: ' + response.rows.length + '</p>'
-					out += '<table class="table table-striped"><tr>'
-					out += '<th>#</th>'
-					for( const col_index in flattened[0] ) {
-						out += `<th>${flattened[0][col_index]}</th>`
-					}
-					out += '</tr>'
-					for( const row_index in flattened ) {
-						if( row_index == 0) {
-							continue
-						}
-						out += '<tr><td>'+row_index+'</td>'
-						for( const col_index in flattened[row_index]) {
-							let val = flattened[row_index][col_index]
-							if( flattened[0][col_index] == 'ctr' || flattened[0][col_index] == 'position' ) {
-								val = val.toFixed(2)
-							}
-							out += `<td>${val}</td>`
+					if( display.table ) {
+						out += '<table class="table table-striped"><tr>'
+						out += '<th>#</th>'
+						for( const col_index in flattened[0] ) {
+							out += `<th>${flattened[0][col_index]}</th>`
 						}
 						out += '</tr>'
+						for( const row_index in flattened ) {
+							if( row_index == 0) {
+								continue
+							}
+							out += '<tr><td>'+row_index+'</td>'
+							for( const col_index in flattened[row_index]) {
+								let val = flattened[row_index][col_index]
+								if( flattened[0][col_index] == 'ctr' || flattened[0][col_index] == 'position' ) {
+									val = val.toFixed(2)
+								}
+								out += `<td>${val}</td>`
+							}
+							out += '</tr>'
+						}
+						out += '</table>'
 					}
-					out += '</table>'
-					download_blob = new Blob( [array_to_csv(last_download_data.flattened)], {type:'application/octet-stream'} )
-					let download_blob_url = URL.createObjectURL(download_blob)
-					$('#sfgsc-download-result').attr('download', 'gsc.csv')
-					$('#sfgsc-download-result').attr('href', download_blob_url)
-					$('#sfgsc-download-result').show()
-					if( flattened[0][0] == 'date' && flattened[0][1] == 'clicks') {
-						$('#sfgsc-explore-chart').attr('style', 'width: 100%; height: 500px')
-						google.charts.load('current', {'packages':['line']})
-						google.charts.setOnLoadCallback(show_explore_chart)
-					} else {
-						$('#sfgsc-explore-chart').attr('style', 'width: 100%; height: 0px')
+					if( display.download ) {
+						download_blob = new Blob( [array_to_csv(last_download_data.flattened)], {type:'application/octet-stream'} )
+						let download_blob_url = URL.createObjectURL(download_blob)
+						$('#sfgsc-download-result').attr('download', 'gsc.csv')
+						$('#sfgsc-download-result').attr('href', download_blob_url)
+						$('#sfgsc-download-result').show()
+					}
+					if( display.chart ) {
+						if( flattened[0][0] == 'date' && flattened[0][1] == 'clicks') {
+							$('#sfgsc-explore-chart').attr('style', 'width: 100%; height: 500px')
+							google.charts.load('current', {'packages':['line']})
+							google.charts.setOnLoadCallback(show_explore_chart)
+						} else {
+							$('#sfgsc-explore-chart').attr('style', 'width: 100%; height: 0px')
+						}
 					}
 				} else {
 					out = "No data in response from API"
@@ -729,6 +857,41 @@
 				return flattened
 			}
 			
+			
+			/**
+				@param start_date string YYYY-MM-DD, describing a date or empty string for today's date
+				@param days number of days to add to start_date
+			 */
+			function get_date_by_days(start_date, days) {
+				let my_date
+				if( start_date == '' ) {
+					my_date = new Date()
+				} else {
+					my_date = new Date(start_date)
+				}
+				my_date.setDate( my_date.getDate() + days )
+				return my_date.toISOString().split('T')[0]
+			}
+			
+			
+			/**
+				Creates the file name to store the GSC API data
+				@param site The URL of the site thats queried
+				@param date The ISO date string
+				@param query_type "detailed" or "generic"
+				@param search_type The search type like "web" or "image"
+			 */
+			function create_csv_filename(site, date, query_type, search_type) {
+				// Convert site URL to a useful string
+				let filename = site.replace(/https?\:\/\//i, '')
+				filename = filename.replace(/[\.\-\/]+/g, "-")
+				filename = filename.replace(/\-+$/, '')
+				// Add date, query_type and search_type
+				filename = filename + '_' + date + '_' + query_type.toLowerCase() + '_' + search_type.toLowerCase()
+				// Add extension
+				filename = filename + '.csv'
+				return filename
+			}
 			
 
 		})
