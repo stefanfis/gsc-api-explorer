@@ -208,11 +208,26 @@
 				</div>
 			</div>
 			<div class="row mt-5">
+				<div class="col">
+					<div id="sfgsc-explore-chart" style="width: 100%; height: 500px"></div>
+				</div>
+			</div>
+			<div class="row mt-5">
+				<div class="col">
+					<button id="sfgsc-explore-show-daily" class="btn btn-outline-secondary" type="button">Daily</button>
+					<button id="sfgsc-explore-show-weekly" class="btn btn-outline-secondary" type="button">Weekly</button>
+					<button id="sfgsc-explore-show-monthly" class="btn btn-outline-secondary" type="button">Monthly</button>
+				</div>
+			</div>
+			<div class="row mt-5">
 				<form class="col mb-3">
 					<a id="sfgsc-download-result" href="#" class="btn btn-sm btn-outline-secondary" style="display: none;" download>Download</a>
 				</form>
-				<div id="sfgsc-explore-chart" style="width: 100%; height: 500px"></div>
-				<div id="sfgsc-explore-result"></div>
+			</div>
+			<div class="row mt-5">
+				<div class="col">
+					<div id="sfgsc-explore-result"></div>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -278,12 +293,31 @@
 				QUERY_URI: 'https://www.googleapis.com/webmasters/v3/sites/###SITE###/searchAnalytics/query?access_token=###TOKEN###',
 				PAGE_SIZE: 25000
 			}
+			
+			let EXPLORE_CHART = null
+			let CHART_OPTIONS = {
+				chart: {
+					title: 'Chart',
+					legend: { position: 'bottom' },
+				},
+				series: {
+					0: {axis: 'clicks'},
+					1: {axis: 'impressions'},
+				},
+				axes: {
+					y: {
+						clicks: {label: 'Clicks'},
+						impressions: {label: 'Impressions'},
+					}
+				}
+			}
+			
 		
 			$('#sfgsc-client-id').val(CONFIG.CLIENT_ID)
 			
 			let last_download_data = null
 			let download_blob = null
-			let explore_site = ""
+			let EXPLORE_SITE = ""
 			let flattened = []
 			
 			
@@ -399,11 +433,11 @@
 				$('#sfgsc-explore-chart').html("")
 				last_download_data = null
 				let query = $('#sfgsc-command').val()
-				explore_site = $('#sfgsc-explore-site').val()
-				fetch_api_data(query, explore_site)
+				EXPLORE_SITE = $('#sfgsc-explore-site').val()
+				fetch_api_data(query, EXPLORE_SITE)
 				.then( (response) => {
 					update_settings({
-						'explore-site': explore_site,
+						'explore-site': EXPLORE_SITE,
 						'explore-query': query
 					})
 					show_explore_result(response.query, response.data, {
@@ -427,6 +461,17 @@
 			$('#sfgsc-load-last-explore-query').on('click', event => {
 				$('#sfgsc-command').val( get_setting('explore-query') )
 				$('#sfgsc-explore-site').val( get_setting('explore-site') )
+			})
+			
+			// EXPLORE: Toggle between daily, weekly and monthly view
+			$('#sfgsc-explore-show-daily').on('click', event => {
+				update_explore_chart('daily')
+			})
+			$('#sfgsc-explore-show-weekly').on('click', event => {
+				update_explore_chart('weekly')
+			})
+			$('#sfgsc-explore-show-monthly').on('click', event => {
+				update_explore_chart('monthly')
 			})
 			
 			// STORE: Set next day
@@ -675,8 +720,9 @@
 					if( display.chart ) {
 						if( flattened[0][0] == 'date' && flattened[0][1] == 'clicks') {
 							$('#sfgsc-explore-chart').attr('style', 'width: 100%; height: 500px')
+							CHART_OPTIONS.chart.title = EXPLORE_SITE
 							google.charts.load('current', {'packages':['line']})
-							google.charts.setOnLoadCallback(show_explore_chart)
+							google.charts.setOnLoadCallback(show_explore_chart_cb)
 						} else {
 							$('#sfgsc-explore-chart').attr('style', 'width: 100%; height: 0px')
 						}
@@ -688,31 +734,55 @@
 			}
 			
 			
-			function show_explore_chart() {
+			function show_explore_chart_cb() {
 				let my_flattened = cut_columns(flattened, [0,1,2])
-				var data = google.visualization.arrayToDataTable(my_flattened);
-				var options = {
-					chart: {
-						title: explore_site,
-						legend: { position: 'bottom' },
-					},
-					series: {
-						0: {axis: 'clicks'},
-						1: {axis: 'impressions'},
-						// 2: {axis: 'ctr'},
-						// 3: {axis: 'position'},
-					},
-					axes: {
-						y: {
-							clicks: {label: 'Clicks'},
-							impressions: {label: 'Impressions'},
-							// ctr: {label: 'CTR'},
-							// position: {label: 'Position'},
-						}
+				let data = google.visualization.arrayToDataTable(my_flattened)
+				EXPLORE_CHART = new google.charts.Line(document.getElementById('sfgsc-explore-chart'))
+				EXPLORE_CHART.draw(data, CHART_OPTIONS)
+			}
+			
+			function update_explore_chart(group_by) {
+				if( group_by === undefined ) {
+					group_by = 'daily'
+				}
+				let my_flattened = cut_columns(flattened, [0,1,2])
+				let my_grouped = group_daily_chart_data(my_flattened, group_by)
+				let data = google.visualization.arrayToDataTable(my_grouped)
+				EXPLORE_CHART.draw(data, CHART_OPTIONS)
+			}
+			
+			
+			/**
+				Expects daily sorted data in rows and groups it as 'weekly' data
+			 */
+			function group_daily_chart_data(rows, group_by) {
+				let new_data = [rows[0]]
+				let last_row = []
+				let date_format_options = { month: 'short'}
+				for( let i = 1; i < rows.length; ++i ) {
+					let key = rows[i][0]
+					let key_date = new Date(key)
+					if( group_by == 'weekly' ) {
+						key = 'KW ' + key_date.getWeekNumber().toString()
 					}
-				};
-				var chart = new google.charts.Line(document.getElementById('sfgsc-explore-chart'));
-				chart.draw(data, options);
+					if( group_by == 'monthly' ) {
+						key = new Intl.DateTimeFormat('en-US', date_format_options).format(key_date)
+					}
+					if( i == 1 ) {
+						last_row = [key]
+						last_row.push(...rows[i].slice(1))
+					} else if( key == last_row[0] ) {
+						for( let j = 1; j < rows[i].length; ++j ) {
+							last_row[j] += rows[i][j]
+						}
+					} else {
+						new_data.push( last_row )
+						last_row = [key]
+						last_row.push(...rows[i].slice(1))
+					}
+				}
+				new_data.push( last_row )
+				return new_data
 			}
 			
 			
