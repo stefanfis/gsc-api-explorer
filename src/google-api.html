@@ -117,15 +117,14 @@
 			<form id="sfgsc-query-form" class="sfgsc-dynamic-content sfgsc-logged-in">
 				<div class="row">
 					<div class="col">
-						Start date: <input type="date" name="sfgsc-start-date" class="form-control">
+						Start date: <input type="date" id="sfgsc-query-start-date" name="sfgsc-query-start-date" class="form-control" required>
 					</div>
 					<div class="col">
-						End date: <input type="date" name="sfgsc-end-date" class="form-control">
+						End date: <input type="date" id="sfgsc-query-end-date" name="sfgsc-query-end-date" class="form-control" required>
 					</div>
 					<div class="col">
 						Dimensions:
-						<select multiple="multiple" name="sfgsc-dimensions-list" class="form-control">
-							<option value="">No Dimension</option>
+						<select multiple="multiple" id="sfgsc-query-dimensions" name="sfgsc-query-dimensions" class="form-control">
 							<option value="country">Country</option>
 							<option value="date">Date</option>
 							<option value="device">Device</option>
@@ -135,15 +134,9 @@
 						</select>
 					</div>
 					<div class="col">
-						Row Limit:
-						<input type="number" value="5000" name="sfgsc-row-limit" class="form-control">
-					</div>
-				</div>
-				<div class="row">
-					<div class="col">
 						Type:
-						<select multiple="multiple" name="sfgsc-dimensions-list" class="form-control">
-							<option value="web">Web (default)</option>
+						<select id="sfgsc-query-type" name="sfgsc-query-type" class="form-control" required>
+							<option value="web" selected>Web</option>
 							<option value="discover">Discover</option>
 							<option value="image">Image</option>
 							<option value="googleNews">Google News</option>
@@ -152,13 +145,31 @@
 						</select>
 					</div>
 				</div>
-				<div class="row">
+				<div class="row mt-3">
 					<div class="col">
-						<button class="btn btn-primary mb-3">Run Query</button>
+						<label class="form-check-label" for="sfgsc-query-site">Website</label>:
+						<input id="sfgsc-query-site" class="form-control" type="text" value="" placeholder="https://www.example.com" required>
+					</div>
+					<div class="col">
+						Start Row:
+						<input type="number" value="0" id="sfgsc-query-start-row" name="sfgsc-query-start-row" class="form-control" required>
+					</div>
+					<div class="col">
+						Row Limit:
+						<input type="number" value="25000" id="sfgsc-query-row-limit" name="sfgsc-query-row-limit" class="form-control" required>
+					</div>
+				</div>
+				<div class="row mt-3">
+					<div class="col">
+						<button class="btn btn-primary">Build Query</button>
+					</div>
+					<div class="col">
+						<button id="sfgsc-query-set-last-month" class="btn btn-outline-secondary" type="button">Last Full Month</button>
+						<button id="sfgsc-query-set-last-year" class="btn btn-outline-secondary" type="button">Last Year</button>
 					</div>
 				</div>
 			</form>
-			<div class="row mb-3">
+			<div class="row mt-3">
 				<div class="col sfgsc-dynamic-content sfgsc-no-access-token">
 					Please authenticate first
 				</div>
@@ -178,13 +189,13 @@
 				</div>
 				<div class="row mb-3">
 					<div class="col">
-						<label class="form-check-label" for="sfgsc-query-site">Website</label>:
-						<input id="sfgsc-query-site" class="form-control" type="text" value="" placeholder="https://www.example.com">
+						<label class="form-check-label" for="sfgsc-explore-site">Website</label>:
+						<input id="sfgsc-explore-site" class="form-control" type="text" value="" placeholder="https://www.example.com">
 					</div>
 				</div>
 				<div class="row mb-3">
 					<div class="col">
-						<button class="btn btn-primary">Query</button>
+						<button class="btn btn-primary">Run Query</button>
 					</div>
 					<div class="col">
 						<button id="sfgsc-load-last-explore-query" class="btn btn-outline-secondary" type="button">Load last query</button>
@@ -278,18 +289,21 @@
 			
 			// Populate "Store" tab with data from last call
 			$('#sfgsc-store-site').val( get_setting('store-site') )
-			console.log( get_setting('store-date') )
-			console.log( get_date_by_days( get_setting('store-date'), 1) )
 			$('#sfgsc-store-date').val( get_date_by_days( get_setting('store-date'), 1) )
 			
+			// Populate "Query" tab with data from last call
+			$('#sfgsc-query-site').val( get_setting('query-site') )
+			$('#sfgsc-query-start-date').val( (new Date()).toISOString().split('T')[0] )
+			$('#sfgsc-query-end-date').val( (new Date()).toISOString().split('T')[0] )
 			
 			
 			/************************************************
 				EVENTS
 			 ************************************************/
 			
-			
-			// "Store Data" form submitted
+			//
+			// STORE: Download data for a SEO warehouse
+			//
 			$('#sfgsc-store-form').on('submit', event => {
 				$('#sfgsc-store-download-detailed').hide()
 				$('#sfgsc-store-download-general').hide()
@@ -343,13 +357,49 @@
 			})
 			
 			
-			// Submit custom query
-			$('#sfgsc-explore-form').on('submit', event => {
-				$('#sfgsc-download-result button').hide()
+			//
+			// QUERY: Submit custom query
+			//
+			$('#sfgsc-query-form').on('submit', event => {
+				// console.log( $('#sfgsc-query-dimensions').val() )
+				let query_obj = {
+					'type': $('#sfgsc-query-type').val(),
+					'startDate': $('#sfgsc-query-start-date').val(),
+					'endDate': $('#sfgsc-query-end-date').val(),
+					'rowLimit': $('#sfgsc-query-row-limit').val(),
+					'startRow': $('#sfgsc-query-start-row').val()
+				}
+				let dimensions = $('#sfgsc-query-dimensions').val()
+				if( dimensions ) {
+					query_obj.dimensions = dimensions
+				}
+				let query = JSON.stringify(query_obj, null, 2)
+				let query_site = $('#sfgsc-query-site').val()
+				update_settings({
+					'query-site': query_site,
+				})
+				// Switch to "Explore" and prefill fields
+				$('#sfgsc-command').val(query)
+				$('#sfgsc-explore-site').val(query_site)
+				$('#sfgsc-download-result').hide()
 				$('#sfgsc-explore-result').html("")
+				$('#sfgsc-explore-chart').html("")
+				$('#sfgsc-nav-tab-explore').click()
+				$('#sfgsc-explore-form').submit()
+				event.preventDefault()
+			})
+
+
+			//
+			// EXPLORE: Execute JSON formatted query
+			//
+			$('#sfgsc-explore-form').on('submit', event => {
+				$('#sfgsc-download-result').hide()
+				$('#sfgsc-explore-result').html("")
+				$('#sfgsc-explore-chart').html("")
 				last_download_data = null
 				let query = $('#sfgsc-command').val()
-				explore_site = $('#sfgsc-query-site').val()
+				explore_site = $('#sfgsc-explore-site').val()
 				fetch_api_data(query, explore_site)
 				.then( (response) => {
 					update_settings({
@@ -373,23 +423,37 @@
 			})
 			
 			
-			// Load last query and site
+			// EXPLORE: Load last query and site
 			$('#sfgsc-load-last-explore-query').on('click', event => {
 				$('#sfgsc-command').val( get_setting('explore-query') )
-				$('#sfgsc-query-site').val( get_setting('explore-site') )
+				$('#sfgsc-explore-site').val( get_setting('explore-site') )
 			})
 			
-			// Set next day
+			// STORE: Set next day
 			$('#sfgsc-set-next-day').on('click', event => {
 				console.log("set next day")
 				$('#sfgsc-store-date').val( get_date_by_days( $('#sfgsc-store-date').val(), 1) )
 			})
 			
-			// Set oldest date with data
+			// STORE: Set oldest date with data
 			$('#sfgsc-set-oldest-date').on('click', event => {
 				$('#sfgsc-store-date').val( get_date_by_days( '', -500) )
 			})
 			
+			// QUERY: Set last month
+			$('#sfgsc-query-set-last-month').on('click', event => {
+				let last_month = get_month_first_last(null, -1)
+				$('#sfgsc-query-start-date').val( get_iso_date(last_month.first) )
+				$('#sfgsc-query-end-date').val( get_iso_date(last_month.last) )
+			})
+			
+			// QUERY: Set last year
+			$('#sfgsc-query-set-last-year').on('click', event => {
+				let last_month = get_month_first_last(null, -1)
+				let last_year_month = get_month_first_last(null, -12)
+				$('#sfgsc-query-start-date').val( get_iso_date(last_year_month.first) )
+				$('#sfgsc-query-end-date').val( get_iso_date(last_month.last) )
+			})
 			
 			// Fetch AuthCode from Google
 			$('#sfgsc-get-authcode-form').on('submit', event => {
@@ -451,11 +515,8 @@
 			let tab_elems = document.querySelectorAll('button[data-bs-toggle="tab"]')
 			for( let i = 0; i < tab_elems.length; ++i ) {
 				tab_elems[i].addEventListener('show.bs.tab', function (event) {
-					console.log(event.target)
-					console.log(event.relatedTarget)
 					let new_tab = $(event.target).attr('data-bs-target')
 					let prev_tab = $(event.relatedTarget).attr('data-bs-target')
-					console.log(prev_tab)
 					$(new_tab).show()
 					$(prev_tab).hide()
 				})
@@ -465,6 +526,7 @@
 			/************************************************
 				FUNCTIONS
 			 ************************************************/
+			
 			
 			
 			/**
@@ -571,7 +633,6 @@
 				let out = ''
 				if( 'rows' in response) {
 					flattened = flatten_gsc_data(query_obj, response.rows)
-					console.log(response)
 					last_download_data = {
 						'original': response,
 						'flattened': flattened,
@@ -591,8 +652,12 @@
 							out += '<tr><td>'+row_index+'</td>'
 							for( const col_index in flattened[row_index]) {
 								let val = flattened[row_index][col_index]
-								if( flattened[0][col_index] == 'ctr' || flattened[0][col_index] == 'position' ) {
-									val = val.toFixed(2)
+								if( val !== undefined ) {
+									if( flattened[0][col_index] == 'ctr' || flattened[0][col_index] == 'position' ) {
+										val = val.toFixed(2)
+									}
+								} else {
+									val = 'n/a'
 								}
 								out += `<td>${val}</td>`
 							}
@@ -624,8 +689,8 @@
 			
 			
 			function show_explore_chart() {
-				flattened = cut_columns(flattened, [0,1,2])
-				var data = google.visualization.arrayToDataTable(flattened);
+				let my_flattened = cut_columns(flattened, [0,1,2])
+				var data = google.visualization.arrayToDataTable(my_flattened);
 				var options = {
 					chart: {
 						title: explore_site,
@@ -831,7 +896,12 @@
 				for( let r = 0; r < data.length; ++r ) {
 					let line = ''
 					for( let c = 0; c < data[r].length; ++c ) {
-						let cell = data[r][c].toString().replaceAll(/"/g, '""')
+						let cell
+						if( data[r][c] !== undefined ) {
+							cell = data[r][c].toString().replaceAll(/"/g, '""')
+						} else {
+							cell = 'n/a'
+						}
 						if( c > 0 ) {
 							line += ','
 						}
@@ -875,6 +945,48 @@
 			
 			
 			/**
+				Returns an object with the first and the last day in the month of the given date
+			
+				@param my_date Date (Format: YYYY-MM-DD)
+				@param month_diff Number of months to add or to substract from my_date
+			 */
+			function get_month_first_last(my_date, month_diff) {
+				if( !my_date ) {
+					my_date = new Date()
+				}
+				if( month_diff === undefined ) {
+					month_diff = 0
+				}
+				let date = new Date(my_date)
+				let first_day = new Date(date.getFullYear(), date.getMonth() + month_diff, 1)
+				let last_day = new Date(date.getFullYear(), date.getMonth() + month_diff + 1, 0)
+				return {
+					'first': get_iso_date(first_day),
+					'last': get_iso_date(last_day)
+				}
+			}
+			
+			
+			/**
+				Returns the YYYY-MM-DD date string of my_date
+			 */
+			function get_iso_date(my_date) {
+				if( typeof my_date === 'string' || my_date instanceof String) {
+					my_date = new Date(my_date)
+				}
+				let my_day = my_date.getDate().toString()
+				if( my_day < 10 ) {
+					my_day = '0' + my_day
+				}
+				let my_month = (my_date.getMonth() + 1).toString()
+				if( my_month < 10 ) {
+					my_month = '0' + my_month
+				}
+				return my_date.getFullYear() + '-' + my_month + '-' + my_day
+			}
+			
+			
+			/**
 				Creates the file name to store the GSC API data
 				@param site The URL of the site thats queried
 				@param date The ISO date string
@@ -893,8 +1005,15 @@
 				return filename
 			}
 			
-
 		})
+		// https://stackoverflow.com/a/6117889/2771733
+		Date.prototype.getWeekNumber = function(){
+			var d = new Date(Date.UTC(this.getFullYear(), this.getMonth(), this.getDate()))
+			var dayNum = d.getUTCDay() || 7
+			d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+			var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1))
+			return Math.ceil((((d - yearStart) / 86400000) + 1)/7)
+		}
 	</script>
 </body>
 </html>
