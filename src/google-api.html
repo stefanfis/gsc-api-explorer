@@ -16,10 +16,11 @@
 	
 	<nav class="navbar-light bg-light mb-4">
 		<div class="nav nav-tabs" role="tablist">
+			<button class="nav-link disabled" id="sfgsc-nav-tab-authenticate" type="button" role="tab">Stefans GSC API Explorer</button>
 			<button class="nav-link active" id="sfgsc-nav-tab-authenticate" data-bs-toggle="tab" data-bs-target="#sfgsc-tab-authenticate" type="button" role="tab">Authenticate</button>
-			<button class="nav-link" id="sfgsc-nav-tab-store" data-bs-toggle="tab" data-bs-target="#sfgsc-tab-store" type="button" role="tab">Store</button>
 			<button class="nav-link" id="sfgsc-nav-tab-query" data-bs-toggle="tab" data-bs-target="#sfgsc-tab-query" type="button" role="tab">Query</button>
 			<button class="nav-link" id="sfgsc-nav-tab-explore" data-bs-toggle="tab" data-bs-target="#sfgsc-tab-explore" type="button" role="tab">Explore</button>
+			<button class="nav-link" id="sfgsc-nav-tab-store" data-bs-toggle="tab" data-bs-target="#sfgsc-tab-store" type="button" role="tab">Download</button>
 		</div>
 	</nav>
 	
@@ -130,7 +131,7 @@
 							<option value="device">Device</option>
 							<option value="page">Page</option>
 							<option value="query">Query</option>
-							<option value="searchAppearance">SearchAppearance</option>
+							<option value="search_appearance">Search Appearance</option>
 						</select>
 					</div>
 					<div class="col">
@@ -158,10 +159,79 @@
 						Row Limit:
 						<input type="number" value="25000" id="sfgsc-query-row-limit" name="sfgsc-query-row-limit" class="form-control" required>
 					</div>
+					<div class="col">
+						Aggregation Type:
+						<select id="sfgsc-query-aggregation-type" name="sfgsc-query-aggregation-type" class="form-control" required>
+							<option value="auto" selected>Auto</option>
+							<option value="by_property">Property</option>
+							<option value="by_page">Page</option>
+						</select>
+					</div>
+				</div>
+				<div class="row mt-3">
+					<div class="col">Filter (optional):</div>
+				</div>
+				<div class="row mt-3 sfgsc-query-filters">
+					<div class="col">
+						Dimension:
+						<select class="sfgsc-query-filter-dimension form-control">
+							<option value="">Please select:</option>
+							<option value="country">Country</option>
+							<option value="device">Device</option>
+							<option value="page">Page</option>
+							<option value="query">Query</option>
+							<option value="search_appearance">Search Appearance</option>
+						</select>
+					</div>
+					<div class="col">
+						Operator:
+						<select class="sfgsc-query-filter-operator form-control">
+							<option value="">Please select:</option>
+							<option value="contains">Contains</option>
+							<option value="notContains">Not Contains</option>
+							<option value="equals">Equals</option>
+							<option value="notEquals">Not Equals</option>
+							<option value="includingRegex">Including REGEX</option>
+							<option value="excludingRegex">Excluding REGEX</option>
+						</select>
+					</div>
+					<div class="col">
+						Expression:
+						<input type="text" value="" class="sfgsc-query-filter-expression form-control">
+					</div>
+				</div>
+				<div class="row mt-3 sfgsc-query-filters">
+					<div class="col">
+						Dimension:
+						<select class="sfgsc-query-filter-dimension form-control">
+							<option value="">Please select:</option>
+							<option value="country">Country</option>
+							<option value="device">Device</option>
+							<option value="page">Page</option>
+							<option value="query">Query</option>
+							<option value="search_appearance">Search Appearance</option>
+						</select>
+					</div>
+					<div class="col">
+						Operator:
+						<select class="sfgsc-query-filter-operator form-control">
+							<option value="">Please select:</option>
+							<option value="contains">Contains</option>
+							<option value="notContains">Not Contains</option>
+							<option value="equals">Equals</option>
+							<option value="notEquals">Not Equals</option>
+							<option value="includingRegex">Including REGEX</option>
+							<option value="excludingRegex">Excluding REGEX</option>
+						</select>
+					</div>
+					<div class="col">
+						Expression:
+						<input type="text" value="" class="sfgsc-query-filter-expression form-control">
+					</div>
 				</div>
 				<div class="row mt-3">
 					<div class="col">
-						<button class="btn btn-primary">Build Query</button>
+						<button class="btn btn-primary">Run Query</button>
 					</div>
 					<div class="col">
 						<button id="sfgsc-query-set-last-month" class="btn btn-outline-secondary" type="button">Last Full Month</button>
@@ -213,7 +283,7 @@
 				</div>
 			</div>
 			<div class="row mt-5">
-				<div class="col">
+				<div class="col sfgsc-dynamic-content sfgsc-no-access-token" id="sfgsc-explore-chart-buttons">
 					<button id="sfgsc-explore-show-daily" class="btn btn-outline-secondary" type="button">Daily</button>
 					<button id="sfgsc-explore-show-weekly" class="btn btn-outline-secondary" type="button">Weekly</button>
 					<button id="sfgsc-explore-show-monthly" class="btn btn-outline-secondary" type="button">Monthly</button>
@@ -331,6 +401,14 @@
 			$('#sfgsc-query-end-date').val( (new Date()).toISOString().split('T')[0] )
 			
 			
+			// Show and hide all tabs (aweful solution to prevent some UI problems)
+			let tab_elems = document.querySelectorAll('div.tab-pane')
+			for( let i = 0; i < tab_elems.length; ++i ) {
+				$(tab_elems[i]).show()
+				$(tab_elems[i]).hide()
+			}
+			
+			
 			/************************************************
 				EVENTS
 			 ************************************************/
@@ -407,6 +485,29 @@
 				if( dimensions ) {
 					query_obj.dimensions = dimensions
 				}
+				let filter = []
+				$('.sfgsc-query-filters').each(function(idx, item) {
+					let my_filter_dimension = $(item).find('.sfgsc-query-filter-dimension').val()
+					let my_filter_operator = $(item).find('.sfgsc-query-filter-operator').val()
+					let my_filter_expression = $(item).find('.sfgsc-query-filter-expression').val()
+					// console.log( my_filter_dimension )
+					// console.log( my_filter_operator )
+					// console.log( my_filter_expression )
+					let my_filter = {}
+					if( my_filter_dimension && my_filter_operator && my_filter_expression ) {
+						my_filter.dimension = my_filter_dimension
+						my_filter.operator = my_filter_operator
+						my_filter.expression = my_filter_expression
+						filter.push(my_filter)
+					}
+				})
+				if( filter.length >= 1 ) {
+					query_obj.dimensionFilterGroups = [
+						{
+							'filters': filter
+						}
+					]
+				}
 				let query = JSON.stringify(query_obj, null, 2)
 				let query_site = $('#sfgsc-query-site').val()
 				update_settings({
@@ -418,6 +519,7 @@
 				$('#sfgsc-download-result').hide()
 				$('#sfgsc-explore-result').html("")
 				$('#sfgsc-explore-chart').html("")
+				$('#sfgsc-explore-chart-buttons').hide()
 				$('#sfgsc-nav-tab-explore').click()
 				$('#sfgsc-explore-form').submit()
 				event.preventDefault()
@@ -431,6 +533,7 @@
 				$('#sfgsc-download-result').hide()
 				$('#sfgsc-explore-result').html("")
 				$('#sfgsc-explore-chart').html("")
+				$('#sfgsc-explore-chart-buttons').hide()
 				last_download_data = null
 				let query = $('#sfgsc-command').val()
 				EXPLORE_SITE = $('#sfgsc-explore-site').val()
@@ -446,6 +549,7 @@
 						'download': true
 					})
 				})
+				.catch( (error) => {})
 				event.preventDefault()
 			})
 			
@@ -557,7 +661,7 @@
 			
 			
 			// Do some UI adaptions when Tab changes
-			let tab_elems = document.querySelectorAll('button[data-bs-toggle="tab"]')
+			tab_elems = document.querySelectorAll('button[data-bs-toggle="tab"]')
 			for( let i = 0; i < tab_elems.length; ++i ) {
 				tab_elems[i].addEventListener('show.bs.tab', function (event) {
 					let new_tab = $(event.target).attr('data-bs-target')
@@ -608,6 +712,7 @@
 						finished_cb()
 					}
 				})
+				.catch( (error) => {})
 			}
 			
 			
@@ -627,14 +732,14 @@
 				if( !query_obj ) {
 					console.log("Query not valid")
 					show_alert('danger', "Query not valid")
-					show_custom_toast("Error", "Query not valid", "")
+					show_custom_toast("Error", "Query not valid", "", 'error')
 					return
 				}
-				if( !/^https?\:\/\/.*$/.test(site) ) {
+				if( !/^(sc\-domain\:)|(https?\:\/\/).*$/.test(site) ) {
 					console.log("Invalid site")
 					console.log(site)
 					show_alert('danger', "Invalid site")
-					show_custom_toast("Error", "Invalid site", "")
+					show_custom_toast("Error", "Invalid site", "", 'error')
 					return
 				}
 				let query_url = CONFIG.QUERY_URI
@@ -655,13 +760,14 @@
 						})
 					})
 					.error( error => {
-						console.log(response)
-						let html = `Error: ${response.responseJSON.error}<br>Description: ${response.responseJSON.error_description}`
-						if( response.status == 401 ) {
+						console.log(error)
+						let html = `Error: ${error.responseJSON.error}<br>Description: ${error.responseJSON.error_description}`
+						if( error.status == 401 ) {
 							update_access_token()
-							show_alert('info', 'You\'ve been logged out. Please re-run your query.')
+							// show_alert('info', 'You\'ve been logged out. Please re-run your query.')
+							show_custom_toast("Info", "Logged out", "You've been logged out. Please re-run your query.", 'info')
 						} else {
-							show_alert('danger', html)
+							show_custom_toast("Error", "Query not valid", error.responseJSON.error.message, 'error')
 						}
 						reject(error)
 					})
@@ -676,6 +782,8 @@
 			 */
 			function show_explore_result(query_obj, response, display) {
 				let out = ''
+				$('#sfgsc-explore-chart').attr('style', 'width: 100%; height: 0px')
+				$('#sfgsc-explore-chart-buttons').hide()
 				if( 'rows' in response) {
 					flattened = flatten_gsc_data(query_obj, response.rows)
 					last_download_data = {
@@ -723,8 +831,10 @@
 							CHART_OPTIONS.chart.title = EXPLORE_SITE
 							google.charts.load('current', {'packages':['line']})
 							google.charts.setOnLoadCallback(show_explore_chart_cb)
+							$('#sfgsc-explore-chart-buttons').show()
 						} else {
 							$('#sfgsc-explore-chart').attr('style', 'width: 100%; height: 0px')
+							$('#sfgsc-explore-chart-buttons').hide()
 						}
 					}
 				} else {
@@ -927,38 +1037,53 @@
 			
 			
 			function show_alert(type, msg) {
+				console.log("show_alert")
 				let alert_id = 'sfgsc-alert-' + type
 				$('#' + alert_id + ' > span').html(msg)
 				$('#' + alert_id + '').addClass("show")
 				let alert = document.getElementById(alert_id)
+				console.log(alert)
 				new bootstrap.Alert(alert)
 			}
 			
-			function show_custom_toast(header, header_small, body) {
-					let options = {
-						delay: 3000,
-					}
-					html_id = "_sfgsc-toast-" + Math.floor( Math.random()*100000 );
-					let html = `<div aria-atomic="true" aria-live="assertive" class="toast position-absolute end-0 top-0 m-3" role="alert" id="${html_id}">
-						<div class="toast-header">
-							<strong class="me-auto">${header}</strong>
-							<small>${header_small}</small>
-							<button aria-label="Close" class="btn-close" data-bs-dismiss="toast" type="button"></button>
-						</div>
-						<div class="toast-body">
-							${body}
-						</div>
-					</div>`;
-					let template = document.createElement('template');
-					template.innerHTML = html;
-					let toast_elem = template.content.firstChild;
-					document.body.appendChild(toast_elem);
-					let my_toast = new Toast(toast_elem, options);
-					my_toast.show();
-					setTimeout(() => {
-						document.body.removeChild(toast_elem);
-					}, options.delay + 200);
+			function show_custom_toast(header, header_small, body, type) {
+				let options = {
+					delay: 5000,
 				}
+				let html_id = "_sfgsc-toast-" + Math.floor( Math.random()*100000 );
+				let bg_color = 'bg-primary'
+				let text_color = 'text-white'
+				if( type == 'error' || type == 'danger') {
+					bg_color = 'bg-danger'
+				}
+				if( type == 'warning' ) {
+					bg_color = 'bg-warning'
+					text_color = 'text-dark'
+				}
+				if( type == 'success' ) {
+					bg_color = 'bg-success'
+					text_color = 'text-white'
+				}
+				let html = `<div aria-atomic="true" aria-live="assertive" class="toast ${text_color} ${bg_color} position-absolute top-50 start-50 translate-middle" role="alert" id="${html_id}">
+					<div class="toast-header">
+						<strong class="me-auto">${header}</strong>
+						<small>${header_small}</small>
+						<button aria-label="Close" class="btn-close" data-bs-dismiss="toast" type="button"></button>
+					</div>
+					<div class="toast-body">
+						${body}
+					</div>
+				</div>`;
+				let template = document.createElement('template');
+				template.innerHTML = html;
+				let toast_elem = template.content.firstChild;
+				document.body.appendChild(toast_elem);
+				let my_toast = new Toast(toast_elem, options);
+				my_toast.show();
+				setTimeout(() => {
+					document.body.removeChild(toast_elem);
+				}, options.delay + 200);
+			}
 			
 			
 			function array_to_csv(data) {
