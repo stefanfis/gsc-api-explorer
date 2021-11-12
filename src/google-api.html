@@ -58,7 +58,7 @@
 	</div>
 	
 	
-	<!-- STORE -->
+	<!-- DOWNLOAD (STORE) -->
 	<div class="tab-pane fade" id="sfgsc-tab-store" role="tabpanel">
 		<div class="container">
 			<form id="sfgsc-store-form" class="sfgsc-dynamic-content sfgsc-logged-in">
@@ -86,7 +86,7 @@
 				</div>
 				<div class="row mt-3">
 					<div class="col">
-						<button class="btn btn-primary">Store Data</button>
+						<button id="sfgsc-store-request-data" class="btn btn-primary">Request Data</button>
 					</div>
 					<div class="col">
 						<button id="sfgsc-set-next-day" class="btn btn-outline-secondary" type="button">Set next day</button>
@@ -99,8 +99,8 @@
 			</div>
 			<div class="row mt-3">
 				<form class="col mb-3">
-					<a id="sfgsc-store-download-detailed" href="#" class="btn btn-sm btn-outline-secondary" style="display: none;" download>Download Detailed Data</a>
-					<a id="sfgsc-store-download-general" href="#" class="btn btn-sm btn-outline-secondary" style="display: none;" download>Download General Data</a>
+					<a id="sfgsc-store-download-detailed" href="#" class="btn btn-sm btn-primary" style="display: none;" download>Download Detailed Data</a>
+					<a id="sfgsc-store-download-general" href="#" class="btn btn-sm btn-primary" style="display: none;" download>Download General Data</a>
 				</form>
 			</div>
 			<div class="row mt-3">
@@ -377,8 +377,8 @@
 				axes: {
 					y: {
 						clicks: {label: 'Clicks'},
-						impressions: {label: 'Impressions'},
-					}
+						impressions: {label: 'Impressions'}
+					},
 				}
 			}
 			
@@ -414,11 +414,15 @@
 			 ************************************************/
 			
 			//
-			// STORE: Download data for a SEO warehouse
+			// DOWNLOAD/STORE: Download data for a SEO warehouse
 			//
 			$('#sfgsc-store-form').on('submit', event => {
 				$('#sfgsc-store-download-detailed').hide()
 				$('#sfgsc-store-download-general').hide()
+				$('#sfgsc-store-download-detailed').addClass('btn-primary')
+				$('#sfgsc-store-download-detailed').removeClass('btn-outline-success')
+				$('#sfgsc-store-download-general').addClass('btn-primary')
+				$('#sfgsc-store-download-general').removeClass('btn-outline-success')
 				$('#sfgsc-store-messages').html('')
 				let store_site = $('#sfgsc-store-site').val()
 				let my_date = $('#sfgsc-store-date').val()
@@ -508,6 +512,10 @@
 						}
 					]
 				}
+				let aggregation_type = $('#sfgsc-query-aggregation-type').val()
+				if( aggregation_type != 'auto' ) {
+					query_obj.aggregationType = aggregation_type
+				}
 				let query = JSON.stringify(query_obj, null, 2)
 				let query_site = $('#sfgsc-query-site').val()
 				update_settings({
@@ -588,6 +596,17 @@
 			$('#sfgsc-set-oldest-date').on('click', event => {
 				$('#sfgsc-store-date').val( get_date_by_days( '', -500) )
 			})
+			
+			
+			$('#sfgsc-store-download-general').on('click', event => {
+				$(event.target).removeClass('btn-primary')
+				$(event.target).addClass('btn-outline-success')
+			})
+			$('#sfgsc-store-download-detailed').on('click', event => {
+				$(event.target).removeClass('btn-primary')
+				$(event.target).addClass('btn-outline-success')
+			})
+			
 			
 			// QUERY: Set last month
 			$('#sfgsc-query-set-last-month').on('click', event => {
@@ -806,6 +825,10 @@
 							for( const col_index in flattened[row_index]) {
 								let val = flattened[row_index][col_index]
 								if( val !== undefined ) {
+									if( flattened[0][col_index] == 'page' ) {
+										let shortened_url = val.substr(-60)
+										val = `<a href="${val}">${shortened_url}</a>`
+									}
 									if( flattened[0][col_index] == 'ctr' || flattened[0][col_index] == 'position' ) {
 										val = val.toFixed(2)
 									}
