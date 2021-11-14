@@ -321,7 +321,6 @@
 	
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
 	<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js" integrity="sha512-xQBQYt9UcgblF6aCMrwU1NkVA7HCXaSN2oq0so80KO+y68M+n64FOcqgav4igHe6D5ObBLIf68DWv+gfBowczg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 	<script>
 		"use strict";
@@ -407,7 +406,9 @@
 				$(tab_elems[i]).show()
 				$(tab_elems[i]).hide()
 			}
+			$('#sfgsc-tab-authenticate').show()
 			
+			update_ui()
 			
 			/************************************************
 				EVENTS
@@ -451,23 +452,6 @@
 					$('#sfgsc-store-download-detailed').attr('download', filename)
 					$('#sfgsc-store-download-detailed').attr('href', download_blob_url)
 					$('#sfgsc-store-download-detailed').show()
-					
-					// Fetch general data
-					query_obj = JSON.parse(JSON.stringify(query_obj_default))
-					query_obj.dimensions = ['date', 'page', 'device', 'country']
-					fetch_paged(query_obj, store_site, 0, (data) => {
-						// store data
-						all_data.general = all_data.general.concat(data.rows)
-					}, () => {
-						// Finished general data
-						let my_flattened = flatten_gsc_data(query_obj, all_data.general)
-						download_blob = new Blob( [array_to_csv(my_flattened)], {type:'application/octet-stream'} )
-						let download_blob_url = URL.createObjectURL(download_blob)
-						let filename = create_csv_filename(store_site, query_obj.startDate, 'general', search_type)
-						$('#sfgsc-store-download-general').attr('download', filename)
-						$('#sfgsc-store-download-general').attr('href', download_blob_url)
-						$('#sfgsc-store-download-general').show()
-					})
 				})
 				event.preventDefault()
 			})
@@ -825,15 +809,17 @@
 							for( const col_index in flattened[row_index]) {
 								let val = flattened[row_index][col_index]
 								if( val !== undefined ) {
-									if( flattened[0][col_index] == 'page' ) {
-										let shortened_url = val.substr(-60)
-										val = `<a href="${val}">${shortened_url}</a>`
-									}
+									// if( flattened[0][col_index] == 'page' ) {
+									// 	let shortened_url = val.substr(-60)
+									// }
 									if( flattened[0][col_index] == 'ctr' || flattened[0][col_index] == 'position' ) {
 										val = val.toFixed(2)
 									}
 								} else {
 									val = 'n/a'
+								}
+								if( col_index == 1 ) {
+									val = escape_html(val)
 								}
 								out += `<td>${val}</td>`
 							}
@@ -863,6 +849,7 @@
 				} else {
 					out = "No data in response from API"
 				}
+				console.log("RESULT DISPLAYED")
 				$('#sfgsc-explore-result').html(out)
 			}
 			
@@ -1223,6 +1210,20 @@
 				return filename
 			}
 			
+			
+			// https://stackoverflow.com/a/41699140/2771733
+			function escape_html(str) {
+				let ret = str
+					.replace(/&/g, "&amp;")
+					.replace(/</g, "&lt;")
+					.replace(/>/g, "&gt;")
+					.replace(/"/g, "&quot;")
+					.replace(/'/g, "&#039;");
+				console.log(ret)
+				return ret
+			}
+			
+			
 		})
 		// https://stackoverflow.com/a/6117889/2771733
 		Date.prototype.getWeekNumber = function(){
@@ -1232,6 +1233,7 @@
 			var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1))
 			return Math.ceil((((d - yearStart) / 86400000) + 1)/7)
 		}
+		
 	</script>
 </body>
 </html>
